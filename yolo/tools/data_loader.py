@@ -25,7 +25,9 @@ from yolo.utils.logger import logger
 
 
 class YoloDataset(Dataset):
-    def __init__(self, data_cfg: DataConfig, dataset_cfg: DatasetConfig, phase: str = "train2017"):
+    def __init__(
+        self, data_cfg: DataConfig, dataset_cfg: DatasetConfig, phase: str = "train2017"
+    ):
         augment_cfg = data_cfg.data_augment
         self.image_size = data_cfg.image_size
         phase_name = dataset_cfg.get(phase, phase)
@@ -34,9 +36,13 @@ class YoloDataset(Dataset):
         self.base_size = mean(self.image_size)
 
         transforms = [eval(aug)(prob) for aug, prob in augment_cfg.items()]
-        self.transform = AugmentationComposer(transforms, self.image_size, self.base_size)
+        self.transform = AugmentationComposer(
+            transforms, self.image_size, self.base_size
+        )
         self.transform.get_more_data = self.get_more_data
-        self.img_paths, self.bboxes, self.ratios = tensorlize(self.load_data(Path(dataset_cfg.path), phase_name))
+        self.img_paths, self.bboxes, self.ratios = tensorlize(
+            self.load_data(Path(dataset_cfg.path), phase_name)
+        )
 
     def load_data(self, dataset_path: Path, phase_name: str):
         """
@@ -68,7 +74,9 @@ class YoloDataset(Dataset):
             logger.info(f":package: Loaded {phase_name} cache")
         return data
 
-    def filter_data(self, dataset_path: Path, phase_name: str, sort_image: bool = False) -> list:
+    def filter_data(
+        self, dataset_path: Path, phase_name: str, sort_image: bool = False
+    ) -> list:
         """
         Filters and collects dataset information by pairing images with their corresponding labels.
 
@@ -82,7 +90,9 @@ class YoloDataset(Dataset):
         """
         images_path = dataset_path / "images" / phase_name
         labels_path, data_type = locate_label_paths(dataset_path, phase_name)
-        images_list = sorted([p.name for p in Path(images_path).iterdir() if p.is_file()])
+        images_list = sorted(
+            [p.name for p in Path(images_path).iterdir() if p.is_file()]
+        )
         if data_type == "json":
             annotations_index, image_info_dict = create_image_metadata(labels_path)
 
@@ -104,7 +114,9 @@ class YoloDataset(Dataset):
                 if not label_path.is_file():
                     continue
                 with open(label_path, "r") as file:
-                    image_seg_annotations = [list(map(float, line.strip().split())) for line in file]
+                    image_seg_annotations = [
+                        list(map(float, line.strip().split())) for line in file
+                    ]
             else:
                 image_seg_annotations = []
 
@@ -124,7 +136,9 @@ class YoloDataset(Dataset):
         logger.info(f"Recorded {valid_inputs}/{len(images_list)} valid inputs")
         return data
 
-    def load_valid_labels(self, label_path: str, seg_data_one_img: list) -> Union[Tensor, None]:
+    def load_valid_labels(
+        self, label_path: str, seg_data_one_img: list
+    ) -> Union[Tensor, None]:
         """
         Loads valid COCO style segmentation data (values between [0, 1]) and converts it to bounding box coordinates
         by finding the minimum and maximum x and y values.
@@ -142,7 +156,9 @@ class YoloDataset(Dataset):
             points = np.array(seg_data[1:]).reshape(-1, 2)
             valid_points = points[(points >= 0) & (points <= 1)].reshape(-1, 2)
             if valid_points.size > 1:
-                bbox = torch.tensor([cls, *valid_points.min(axis=0), *valid_points.max(axis=0)])
+                bbox = torch.tensor(
+                    [cls, *valid_points.min(axis=0), *valid_points.max(axis=0)]
+                )
                 bboxes.append(bbox)
 
         if bboxes:
@@ -216,7 +232,9 @@ def collate_fn(batch: List[Tuple[Tensor, Tensor]]) -> Tuple[Tensor, List[Tensor]
     return batch_size, batch_images, batch_targets, batch_reverse, batch_path
 
 
-def create_dataloader(data_cfg: DataConfig, dataset_cfg: DatasetConfig, task: str = "train"):
+def create_dataloader(
+    data_cfg: DataConfig, dataset_cfg: DatasetConfig, task: str = "train"
+):
     if task == "inference":
         return StreamDataLoader(data_cfg)
 
@@ -237,7 +255,9 @@ class StreamDataLoader:
     def __init__(self, data_cfg: DataConfig):
         self.source = data_cfg.source
         self.running = True
-        self.is_stream = isinstance(self.source, int) or str(self.source).lower().startswith("rtmp://")
+        self.is_stream = isinstance(self.source, int) or str(
+            self.source
+        ).lower().startswith("rtmp://")
 
         self.transform = AugmentationComposer([], data_cfg.image_size)
         self.stop_event = Event()
@@ -255,7 +275,9 @@ class StreamDataLoader:
     def load_source(self):
         if self.source.is_dir():  # image folder
             self.load_image_folder(self.source)
-        elif any(self.source.suffix.lower().endswith(ext) for ext in [".mp4", ".avi", ".mkv"]):  # Video file
+        elif any(
+            self.source.suffix.lower().endswith(ext) for ext in [".mp4", ".avi", ".mkv"]
+        ):  # Video file
             self.load_video_file(self.source)
         else:  # Single image
             self.process_image(self.source)

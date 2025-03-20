@@ -36,7 +36,9 @@ class YOLO(nn.Module):
         for arch_name in model_arch:
             if model_arch[arch_name]:
                 logger.info(f"  :building_construction:  Building {arch_name}")
-            for layer_idx, layer_spec in enumerate(model_arch[arch_name], start=layer_idx):
+            for layer_idx, layer_spec in enumerate(
+                model_arch[arch_name], start=layer_idx
+            ):
                 layer_type, layer_info = next(iter(layer_spec.items()))
                 layer_args = layer_info.get("args", {})
 
@@ -44,9 +46,15 @@ class YOLO(nn.Module):
                 source = self.get_source_idx(layer_info.get("source", -1), layer_idx)
 
                 # Find in channels
-                if any(module in layer_type for module in ["Conv", "ELAN", "ADown", "AConv", "CBLinear"]):
+                if any(
+                    module in layer_type
+                    for module in ["Conv", "ELAN", "ADown", "AConv", "CBLinear"]
+                ):
                     layer_args["in_channels"] = output_dim[source]
-                if any(module in layer_type for module in ["Detection", "Segmentation", "Classification"]):
+                if any(
+                    module in layer_type
+                    for module in ["Detection", "Segmentation", "Classification"]
+                ):
                     if isinstance(source, list):
                         layer_args["in_channels"] = [output_dim[idx] for idx in source]
                     else:
@@ -63,12 +71,16 @@ class YOLO(nn.Module):
                         raise ValueError(f"Duplicate tag '{layer_info['tags']}' found.")
                     self.layer_index[layer.tags] = layer_idx
 
-                out_channels = self.get_out_channels(layer_type, layer_args, output_dim, source)
+                out_channels = self.get_out_channels(
+                    layer_type, layer_args, output_dim, source
+                )
                 output_dim.append(out_channels)
                 setattr(layer, "out_c", out_channels)
             layer_idx += 1
 
-    def forward(self, x, external: Optional[Dict] = None, shortcut: Optional[str] = None):
+    def forward(
+        self, x, external: Optional[Dict] = None, shortcut: Optional[str] = None
+    ):
         y = {0: x, **(external or {})}
         output = dict()
         for index, layer in enumerate(self.model, start=1):
@@ -77,7 +89,9 @@ class YOLO(nn.Module):
             else:
                 model_input = y[layer.source]
 
-            external_input = {source_name: y[source_name] for source_name in layer.external}
+            external_input = {
+                source_name: y[source_name] for source_name in layer.external
+            }
 
             x = layer(model_input, **external_input)
             y[-1] = x
@@ -89,7 +103,13 @@ class YOLO(nn.Module):
                     return output
         return output
 
-    def get_out_channels(self, layer_type: str, layer_args: dict, output_dim: list, source: Union[int, list]):
+    def get_out_channels(
+        self,
+        layer_type: str,
+        layer_args: dict,
+        output_dim: list,
+        source: Union[int, list],
+    ):
         if hasattr(layer_args, "out_channels"):
             return layer_args["out_channels"]
         if layer_type == "CBFuse":
@@ -110,7 +130,9 @@ class YOLO(nn.Module):
             self.model[source - 1].usable = True
         return source
 
-    def create_layer(self, layer_type: str, source: Union[int, list], layer_info: Dict, **kwargs) -> YOLOLayer:
+    def create_layer(
+        self, layer_type: str, source: Union[int, list], layer_info: Dict, **kwargs
+    ) -> YOLOLayer:
         if layer_type in self.layer_map:
             layer = self.layer_map[layer_type](**kwargs)
             setattr(layer, "layer_type", layer_type)
@@ -132,7 +154,9 @@ class YOLO(nn.Module):
             weights: A OrderedDict containing the new weights.
         """
         if isinstance(weights, Path):
-            weights = torch.load(weights, map_location=torch.device("cpu"), weights_only=False)
+            weights = torch.load(
+                weights, map_location=torch.device("cpu"), weights_only=False
+            )
         if "model_state_dict" in weights:
             weights = weights["model_state_dict"]
 
@@ -153,12 +177,16 @@ class YOLO(nn.Module):
 
         for error_name, error_set in error_dict.items():
             for weight_name in error_set:
-                logger.warning(f":warning: Weight {error_name} for key: {'.'.join(weight_name)}")
+                logger.warning(
+                    f":warning: Weight {error_name} for key: {'.'.join(weight_name)}"
+                )
 
         self.model.load_state_dict(model_state_dict)
 
 
-def create_model(model_cfg: ModelConfig, weight_path: Union[bool, Path] = True, class_num: int = 80) -> YOLO:
+def create_model(
+    model_cfg: ModelConfig, weight_path: Union[bool, Path] = True, class_num: int = 80
+) -> YOLO:
     """Constructs and returns a model from a Dictionary configuration file.
 
     Args:

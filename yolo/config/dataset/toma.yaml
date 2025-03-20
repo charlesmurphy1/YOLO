@@ -1,0 +1,7 @@
+path: /home/cmurphy/datasets/toma/box-detection-yolo
+train: train
+validation: val
+
+class_num: 2
+class_list: ["open", "closed"]
+
