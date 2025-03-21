@@ -1,4 +1,4 @@
-path: /home/cmurphy/datasets/toma/box-detection-yolo
+path: /home/cmurphy/datasets/toma/box-detection-yolo-1.1
 train: train
 validation: val
 

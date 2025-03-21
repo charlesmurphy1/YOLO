@@ -159,6 +159,8 @@ class YOLO(nn.Module):
             )
         if "model_state_dict" in weights:
             weights = weights["model_state_dict"]
+        elif "state_dict" in weights:
+            weights = weights["state_dict"]
 
         model_state_dict = self.model.state_dict()
 
