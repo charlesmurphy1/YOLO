@@ -9,7 +9,7 @@ setup(
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     license="LICENSE",
-    python_requires=">=3.12",
+    python_requires=">=3.10",
     packages=find_packages(where=".", include=["yolo*"]),
     package_data={"yolo": ["**/*.yaml"]},
     include_package_data=True,
