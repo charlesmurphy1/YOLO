@@ -7,13 +7,14 @@ from lightning import Trainer
 project_root = Path(__file__).resolve().parent.parent
 sys.path.append(str(project_root))
 
-from yolo.config.config import Config
+from omegaconf import DictConfig
+
 from yolo.tools.solver import InferenceModel, TrainModel, ValidateModel
 from yolo.utils.logging_utils import setup
 
 
 @hydra.main(config_path="config", config_name="config", version_base=None)
-def main(cfg: Config):
+def main(cfg: DictConfig):
     callbacks, loggers, save_path = setup(cfg)
 
     trainer = Trainer(
