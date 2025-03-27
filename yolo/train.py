@@ -1,20 +1,17 @@
-import sys
-from pathlib import Path
+import os
 
-import hydra
+import yaml
 from lightning import Trainer
-
-project_root = Path(__file__).resolve().parent.parent
-sys.path.append(str(project_root))
-
 from omegaconf import DictConfig
 
-from yolo.tools.solver import InferenceModel, TrainModel, ValidateModel
+from yolo.tools.solver import TrainModel
 from yolo.utils.logging_utils import setup
 
 
-@hydra.main(config_path="config", config_name="config", version_base=None)
-def main(cfg: DictConfig):
+def main():
+    with open(os.path.join(os.path.dirname(__file__), "main_config.yaml"), "r") as f:
+        cfg = yaml.load(f, Loader=yaml.FullLoader)
+    cfg = DictConfig(cfg)
     callbacks, loggers, save_path = setup(cfg)
 
     trainer = Trainer(
@@ -31,15 +28,8 @@ def main(cfg: DictConfig):
         default_root_dir=save_path,
         accumulate_grad_batches=4,
     )
-    if cfg.task.task == "train":
-        model = TrainModel(cfg)
-        trainer.fit(model)
-    if cfg.task.task == "validation":
-        model = ValidateModel(cfg)
-        trainer.validate(model)
-    if cfg.task.task == "inference":
-        model = InferenceModel(cfg)
-        trainer.predict(model)
+    model = TrainModel(cfg)
+    trainer.fit(model)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,231 @@
+cpu_num: 16
+name: toma-box-detection
+dataset:
+  class_list:
+  - open
+  - closed
+  class_num: 2
+  path: /home/cmurphy/datasets/toma/box-detection-yolo-1.1
+  train: train
+  validation: val
+device: 0
+exist_ok: true
+image_size:
+- 640
+- 640
+lucky_number: 10
+model:
+  name: v9-t
+
+  anchor:
+    reg_max: 16
+
+  model:
+    backbone:
+      - Conv:
+          args: {out_channels: 16, kernel_size: 3, stride: 2}
+          source: 0
+      - Conv:
+          args: {out_channels: 32, kernel_size: 3, stride: 2}
+      - ELAN:
+          args: {out_channels: 32, part_channels: 32}
+
+      - AConv:
+          args: {out_channels: 64}
+      - RepNCSPELAN:
+          args:
+              out_channels: 64
+              part_channels: 64
+              csp_args: {repeat_num: 3}
+          tags: B3
+
+      - AConv:
+          args: {out_channels: 96}
+      - RepNCSPELAN:
+          args:
+              out_channels: 96
+              part_channels: 96
+              csp_args: {repeat_num: 3}
+          tags: B4
+
+      - AConv:
+          args: {out_channels: 128}
+      - RepNCSPELAN:
+          args:
+              out_channels: 128
+              part_channels: 128
+              csp_args: {repeat_num: 3}
+          tags: B5
+
+    neck:
+      - SPPELAN:
+          args: {out_channels: 128}
+          tags: N3
+
+      - UpSample:
+          args: {scale_factor: 2, mode: nearest}
+      - Concat:
+          source: [-1, B4]
+      - RepNCSPELAN:
+          args:
+              out_channels: 96
+              part_channels: 96
+              csp_args: {repeat_num: 3}
+          tags: N4
+
+    head:
+      - UpSample:
+          args: {scale_factor: 2, mode: nearest}
+      - Concat:
+          source: [-1, B3]
+
+      - RepNCSPELAN:
+          args:
+              out_channels: 64
+              part_channels: 64
+              csp_args: {repeat_num: 3}
+          tags: P3
+      - AConv:
+          args: {out_channels: 48}
+      - Concat:
+          source: [-1, N4]
+
+      - RepNCSPELAN:
+          args:
+              out_channels: 96
+              part_channels: 96
+              csp_args: {repeat_num: 3}
+          tags: P4
+      - AConv:
+          args: {out_channels: 64}
+      - Concat:
+          source: [-1, N3]
+
+      - RepNCSPELAN:
+          args:
+              out_channels: 128
+              part_channels: 128
+              csp_args: {repeat_num: 3}
+          tags: P5
+
+    detection:
+      - MultiheadDetection:
+          source: [P3, P4, P5]
+          tags: Main
+          output: True
+
+    auxiliary:
+      - SPPELAN:
+          source: B5
+          args: {out_channels: 128}
+          tags: A5
+
+      - UpSample:
+          args: {scale_factor: 2, mode: nearest}
+      - Concat:
+          source: [-1, B4]
+
+      - RepNCSPELAN:
+          args:
+              out_channels: 96
+              part_channels: 96
+              csp_args: {repeat_num: 3}
+          tags: A4
+
+      - UpSample:
+          args: {scale_factor: 2, mode: nearest}
+      - Concat:
+          source: [-1, B3]
+
+      - RepNCSPELAN:
+          args:
+              out_channels: 64
+              part_channels: 64
+              csp_args: {repeat_num: 3}
+          tags: A3
+
+      - MultiheadDetection:
+          source: [A3, A4, A5]
+          tags: AUX
+          output: True
+
+out_path: runs
+task:
+  data:
+    batch_size: 16
+    cpu_num: 16
+    data_augment:
+      # Core augmentations
+      Mosaic: 1.0  # Matches mosaic: 1.0
+      RandomCrop: 1.0  # Matches crop_fraction: 1.0
+      RemoveOutliers: 1.0e-08  # Filters small/invalid boxes
+      
+      # Flip augmentations (from original config)
+      HorizontalFlip: 0.5  # Matches fliplr: 0.5
+      VerticalFlip: 0.0  # Matches flipud: 0.0
+      
+      # Color adjustments (from original config)
+      RandomHSV: 1.0  # Applies HSV transformations with hgain=0.015, sgain=0.7, vgain=0.4
+      
+      # Geometric transformations
+      RandomPerspective: 0.0  # Combines degrees: 0.0, translate: 0.1, scale: 0.5, shear: 0.0, perspective: 0.0
+      
+      # Advanced augmentations 
+      MixUp: 0.0  # Matches mixup: 0.0
+      
+    image_size:
+    - 640
+    - 640
+    pin_memory: true
+    shuffle: true
+  ema:
+    decay: 0.995
+    enable: true
+  epoch: 100
+  loss:
+    aux: 0.0
+    matcher:
+      factor:
+        cls: 1.0
+        iou: 6.0
+      iou: CIoU
+      topk: 13
+    objective:
+      BCELoss: 0.5  # Matches cls: 0.5 (classification loss)
+      BoxLoss: 7.5  # Matches box: 7.5 (box loss)
+      DFLoss: 1.5  # Matches dfl: 1.5 (distribution focal loss)
+  optimizer:
+    args:
+      lr: 0.01  # Matches lr0: 0.01
+      momentum: 0.937  # Matches momentum: 0.937
+      nesterov: true
+      weight_decay: 0.0005  # Matches weight_decay: 0.0005
+    type: SGD
+  scheduler:
+    args:
+      end_factor: 0.01  # Matches lrf: 0.01
+      start_factor: 1
+      total_iters: 50
+    type: LinearLR
+    warmup:
+      epochs: 3.0  # Matches warmup_epochs: 3.0
+  task: train
+  validation:
+    data:
+      batch_size: 32
+      cpu_num: 16
+      data_augment: {}
+      dynamic_shape: false
+      image_size:
+      - 640
+      - 640
+      pin_memory: true
+      shuffle: false
+    nms:
+      max_bbox: 1000
+      min_confidence: 0.0001
+      min_iou: 0.7
+    task: validation
+use_tensorboard: false
+use_wandb: true
+weight: true
